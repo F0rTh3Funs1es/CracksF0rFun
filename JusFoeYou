@@ -1,0 +1,12 @@
+--[[ Script made by "high.on.those.dreams" on discord
+ Press J for controll menu in debug page(f9)
+]]
+wait(0.2)
+print("Loading Crack...")
+local startTime = tick() -- Record the start time
+-- Main Script
+loadstring(game:HttpGet("https://raw.githubusercontent.com/F0rTh3Funs1es/CracksF0rFun/refs/heads/main/ByeBye-fron"))()
+-- Print Load Time
+local loadTime = tick() - startTime -- Calculate load time
+print("Crack loaded in " .. string.format("%.2f", loadTime) .. " seconds") -- Display load time
+

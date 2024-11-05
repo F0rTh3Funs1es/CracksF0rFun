@@ -1,0 +1,289 @@
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local isCameraLocked = false  -- Tracks whether the camera is locked or not
+local lockedPlayer = nil      -- Stores the current player the camera is locked to
+local highlights = {}         -- Stores highlights for each player
+local highlightsEnabled = false -- Tracks whether highlights are enabled
+local lockToHead = true  -- Determines if locking targets the head or torso
+local controlsDisplayed = false -- Track if controls have already been displayed
+
+-- Function to display the controls
+local function displayControls()
+    if not controlsDisplayed then
+        print("Controls:")
+        print("Q - Toggle aim lock")
+        print("F - Toggle Esp")
+        print("X - Toggle between head and body lock")
+        print("J - Show controls")
+        controlsDisplayed = true -- Set to true to prevent further prints
+    end
+end
+
+
+-- Function to show simulated toast notification
+local Debris = game:GetService("Debris")
+
+-- Function to show simulated toast notification
+local currentNotification = nil  -- Track the current notification
+
+local function showNotification(message)
+    
+
+    -- Remove the existing notification if it exists
+    if currentNotification then
+        currentNotification:Destroy()
+    end
+
+    -- Create a new ScreenGui for the notification
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Create a new TextLabel for the notification
+    currentNotification = Instance.new("TextLabel")
+    currentNotification.Text = message
+    currentNotification.Size = UDim2.new(0.3, 0, 0.1, 0) -- Adjust size for toast look
+    currentNotification.Position = UDim2.new(0.35, 0, 0.1, 0) -- Top-center position
+    currentNotification.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Dark background
+    currentNotification.TextColor3 = Color3.fromRGB(255, 255, 255) -- White text
+    currentNotification.BackgroundTransparency = 0.5
+    currentNotification.TextScaled = true
+    currentNotification.Parent = screenGui -- Add to the ScreenGui
+
+    -- Automatically destroy the ScreenGui after 2 seconds
+    Debris:AddItem(screenGui, 3)
+end
+
+
+
+
+
+
+-- Function to check if a player is on screen
+local function isPlayerOnScreen(player)
+    if player.Character and player.Character:FindFirstChild("Head") then
+        local screenPos, isVisible = Camera:WorldToScreenPoint(player.Character.Head.Position)
+        return isVisible and screenPos.X >= 0 and screenPos.X <= Camera.ViewportSize.X and
+               screenPos.Y >= 0 and screenPos.Y <= Camera.ViewportSize.Y
+    end
+    return false
+end
+
+-- Function to find the closest player to the mouse cursor on screen
+local function getClosestPlayerToCursor()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation() -- Get the mouse cursor position
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and isPlayerOnScreen(player) and player.Character and player.Character:FindFirstChild("Head") then
+            local targetPos = player.Character.Head.Position
+            local screenPos = Camera:WorldToScreenPoint(targetPos)
+            local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude -- Calculate distance from mouse
+
+            if distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Function to lock camera and face character to a player's head
+local function lockCameraToPlayerHead(targetPlayer)
+    if targetPlayer and targetPlayer.Character then
+        -- Determine target part based on the toggle
+        local targetPart = lockToHead and targetPlayer.Character:FindFirstChild("Head") or targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if targetPart then
+            local targetPos = targetPart.Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+    
+            -- Rotate local player to face the target position
+            local rootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                local lookVector = (targetPos - rootPart.Position).unit
+                rootPart.CFrame = CFrame.new(rootPart.Position, rootPart.Position + lookVector)
+            end
+        end
+    end
+end
+
+
+-- Function to unlock the camera (reset to default behavior)
+local function unlockCamera()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        Camera.CameraSubject = LocalPlayer.Character.Humanoid
+    end
+end
+
+-- Function to create a highlight for a player
+local function createHighlight(player)
+    if highlightsEnabled and player.Character then
+        local highlight = Instance.new("Highlight")
+        -- Set highlight color based on team membership
+        if player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            highlight.FillColor = Color3.fromRGB(0, 255, 0) -- Green fill color for teammates
+        else
+            highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Red fill color for enemies
+        end
+        highlight.FillTransparency = 0.5 -- Slightly transparent
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White outline
+        highlight.OutlineTransparency = 0 -- Opaque outline
+        highlight.Parent = player.Character
+        highlights[player.UserId] = highlight
+    end
+end
+
+
+
+-- Function to remove a highlight for a player
+local function removeHighlight(player)
+    if highlights[player.UserId] then
+        highlights[player.UserId]:Destroy()
+        highlights[player.UserId] = nil
+    end
+end
+
+local function toggleHighlights()
+    highlightsEnabled = not highlightsEnabled
+    for _, player in ipairs(Players:GetPlayers()) do
+        if highlightsEnabled then
+            createHighlight(player)
+            showNotification("Esp Enabled")
+        else
+            removeHighlight(player) -- Remove highlight if disabled
+            showNotification("Esp Disabled")
+        end
+    end
+end
+
+-- Handle player joining
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        createHighlight(player) -- Create highlight when character spawns
+    end)
+end)
+
+-- Handle player leaving
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player) -- Remove highlight when player leaves
+end)
+
+-- Create highlight for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(function()
+        createHighlight(player)
+    end)
+
+    if player.Character then
+        createHighlight(player)
+    end
+end
+
+-- Toggle camera lock on Q press
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Q and not gameProcessed then
+        if isCameraLocked then
+            -- Unlock the camera
+            unlockCamera()
+            showNotification("Unlocked from player: " .. (lockedPlayer and lockedPlayer.DisplayName or "None")) -- Show unlock notification
+            isCameraLocked = false
+            lockedPlayer = nil
+        else
+            -- Find and lock onto the closest player to the cursor on screen
+            local closestPlayer = getClosestPlayerToCursor()
+            if closestPlayer then
+                lockedPlayer = closestPlayer
+                lockCameraToPlayerHead(lockedPlayer)
+                showNotification("Locked on: " .. (lockedPlayer and lockedPlayer.DisplayName or "None")) -- Show display name notification
+                isCameraLocked = true
+            end
+        end
+    elseif input.KeyCode == Enum.KeyCode.F and not gameProcessed then
+        toggleHighlights() -- Toggle highlights on F press
+        
+    elseif input.KeyCode == Enum.KeyCode.X and not gameProcessed then
+        lockToHead = not lockToHead  -- Toggle between head and body lock
+        local target = lockToHead and "head" or "body"
+        showNotification("Only hitting " .. target .. " shots") -- Show target notification
+
+
+    elseif input.KeyCode == Enum.KeyCode.J and not gameProcessed then
+    controlsDisplayed = false -- Reset so it can display again if desired
+    displayControls() -- Show controls when J is pressed
+    showNotification("Displayed Controlls in Debug Menu(f9)") -- Show unlock notification
+    end
+end)
+
+
+
+
+
+
+
+-- Continuously update camera lock and character rotation if it's active
+RunService.RenderStepped:Connect(function()
+    if isCameraLocked and lockedPlayer then
+        -- Check if the locked player is dead
+        local humanoid = lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health <= 0 then
+            -- Unlock the camera if the player is dead
+            unlockCamera()
+            isCameraLocked = false
+            showNotification("Unlocked from player: " .. (lockedPlayer and lockedPlayer.DisplayName or "None")) -- Show unlock notification
+            lockedPlayer = nil
+        else
+            -- Lock camera to the player's head if they're alive
+            lockCameraToPlayerHead(lockedPlayer)
+        end
+    end
+end)
+
+
+
+
+
+
+
+
+-- Handle player joining
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        createHighlight(player) -- Create highlight when character spawns
+        
+    end)
+end)
+
+-- Handle player leaving
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player) -- Remove highlight when player leaves
+     
+end)
+
+-- Create highlight and health display for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    player.CharacterAdded:Connect(function()
+        createHighlight(player)
+        
+    end)
+
+    if player.Character then
+        createHighlight(player)
+         
+    end
+end
+showNotification("Enjoy the Crack " .. LocalPlayer.DisplayName)
+wait(3)
+showNotification("Press J for controls to appear in the debug menu(f9).") -- New notification for controls
+
+
+
+
+

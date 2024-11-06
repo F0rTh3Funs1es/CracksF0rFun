@@ -1,4 +1,5 @@
-
+print("Loading Crack...")
+local startTime = tick()
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
@@ -284,7 +285,8 @@ wait(3)
 showNotification("Press J for controls to appear in the debug menu(f9).") -- New notification for controls
 print("Made by 'high.on.those.dreams' on Discord")
 
-
+local loadTime = tick() - startTime 
+print("Crack loaded in " .. string.format("%.2f", loadTime) .. " seconds")
 
 
 

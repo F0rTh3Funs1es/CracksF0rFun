@@ -282,7 +282,7 @@ end
 showNotification("Enjoy the Crack " .. LocalPlayer.DisplayName)
 wait(3)
 showNotification("Press J for controls to appear in the debug menu(f9).") -- New notification for controls
-print("Made by "high.on.those.dreams" on Discord")
+print("Made by 'high.on.those.dreams' on Discord")
 
 
 

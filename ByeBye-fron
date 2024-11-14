@@ -207,7 +207,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
                 isCameraLocked = true
             end
         end
-    elseif input.KeyCode == Enum.KeyCode.F and not gameProcessed then
+    elseif input.KeyCode == Enum.KeyCode.G and not gameProcessed then
         toggleHighlights() -- Toggle highlights on F press
         
     elseif input.KeyCode == Enum.KeyCode.X and not gameProcessed then
